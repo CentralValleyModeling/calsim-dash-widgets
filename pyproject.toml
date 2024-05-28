@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "calsim_dash_widgets"
+authors = [
+    {name = "Zachary Roy", email = "zachary.roy@water.ca.gov" }
+]
+description = "Common widgets for plotly-dash based CalSim dashboards."
+readme = "README.md"
+license = {text = "MIT" }
+version = "0.0.1"
+classifiers = [
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    "numpy",
+]
+
+
+
+[tool.setuptools]
+include-package-data = true
