@@ -59,8 +59,27 @@ def eos_max(timeseries: csrs.Timeseries | pandss.RegularTimeseries) -> float:
 def annual_sum(
     timeseries: csrs.Timeseries | pandss.RegularTimeseries,
     month: int = 1,
+    cfs_to_taf: bool = True,
 ) -> pd.DataFrame:
     df = timeseries.to_frame()
+    if cfs_to_taf and (timeseries.units.lower() == "cfs"):
+        if isinstance(df.index, pd.PeriodIndex):
+            delta = df.index.to_timestamp(how="end") - df.index.to_timestamp()
+        elif isinstance(df.index, pd.DatetimeIndex):
+            delta = df.index.to_series().diff()
+            # Assume diffs are cyclical on a 48 instance period, works for
+            # months, days, hours. Not weeks
+            delta.iloc[0] = delta.iloc[47]
+            delta = pd.TimedeltaIndex(delta)
+        else:
+            raise ValueError(
+                f"Cannot determine duration without date-like index: {type(df.index)=}"
+            )
+        seconds = delta.total_seconds()
+        df = (df.mul(seconds, axis=0)) / 43_560_000  # cfs to TAF
+        cols = df.columns.to_frame()
+        cols["UNITS"] = ["TAF"]
+        df.columns = pd.MultiIndex.from_frame(cols)
     return df.resample(pd.offsets.YearEnd(month=month)).sum()
 
 
