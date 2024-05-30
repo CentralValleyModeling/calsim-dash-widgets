@@ -7,12 +7,21 @@ import dash_bootstrap_components as dbc
 from . import aggregation, plotting
 
 StorageAggArguments = Literal["eos_mean", "eos_max", "eos_min", "mean", "max", "min"]
+AGG_MEANING = {
+    "eos_mean": "Average End of Sept Storage",
+    "eos_max": "End of Sept Storage Maximum",
+    "eos_min": "End of Sept Storage Minimum",
+    "mean": "Average Monthly Storage",
+    "max": "Maximum Single Month Storage",
+    "min": "Minimum Single Month Storage",
+}
 
 
 class TimeseriesCard(dbc.Card):
     value: float
     timeseries: csrs.Timeseries
     header: str
+    display_units: str
 
     def _init_card(self, **kwargs):
         # Initialize the sub-card elements
@@ -21,7 +30,7 @@ class TimeseriesCard(dbc.Card):
             className="small em m-0 p-0",
         )
         display_value = dash.html.H3(
-            f"{self.value:,.0f} {self.timeseries.units}",
+            f"{self.value:,.0f} {self.display_units}",
             className="card-title",
         )
         # Assemble the body
@@ -30,7 +39,7 @@ class TimeseriesCard(dbc.Card):
         footer = [
             dash.html.P(
                 f"{self.timeseries.scenario} (v{self.timeseries.version})",
-                className="small",
+                className="small mb-0",
             ),
         ]
 
@@ -61,19 +70,13 @@ class StorageCard(TimeseriesCard):
         kind: StorageAggArguments = "eos_mean",
         **kwargs,
     ):
-        agg_subheader = {
-            "eos_mean": "Average End of Sept Storage",
-            "eos_max": "Max End of Sept Storage",
-            "eos_min": "Min End of Sept Storage",
-            "mean": "Average Storage",
-            "max": "Maximum Storage",
-            "min": "Minimum Storage",
-        }
+
         self.timeseries = timeseries
         self.header = header or timeseries.path.split("/")[2]
         agg_func = getattr(aggregation, kind)
         self.value = agg_func(timeseries)
-        self._init_card(subheader=agg_subheader.get(kind, kind), **kwargs)
+        self.display_units = self.timeseries.units
+        self._init_card(subheader=AGG_MEANING.get(kind, kind), **kwargs)
 
 
 class AverageAnnualFlowCard(TimeseriesCard):
@@ -81,14 +84,16 @@ class AverageAnnualFlowCard(TimeseriesCard):
         self,
         timeseries: csrs.Timeseries,
         header: str = None,
-        kind: StorageAggArguments = "eos_mean",
         **kwargs,
     ):
         self.timeseries = timeseries
         self.header = header or timeseries.path.split("/")[2]
-        agg_func = getattr(aggregation, kind)
-        self.value = agg_func(timeseries)
-        self._init_card(**kwargs)
+        self.value = aggregation.annual_sum(timeseries).iloc[:, 0].mean()
+        if self.timeseries.units.lower() == "cfs":
+            self.display_units = "TAF"  # The above step converts
+        else:
+            self.display_units = self.timeseries.units
+        self._init_card(subheader="Average Annual Flow", **kwargs)
 
 
 class SparklineCard(dbc.Card):
@@ -103,32 +108,41 @@ class SparklineCard(dbc.Card):
         self._init_card(**kwargs)
 
     def _get_sparkline(self):
-        return plotting.sparkline(self.timeseries.to_frame().iloc[:, 0])
+        return plotting.sparkline(
+            self.timeseries.to_frame().iloc[:, 0],
+            yaxis=dict(title=self.timeseries.units),
+        )
 
     def _init_card(self, **kwargs):
         sparkline = self._get_sparkline()
-        display_body_details = dash.html.P(
-            f"{self.timeseries.scenario}",
-            className="card-text",
-        )
+
         # Assemble the body
         body = list()
-        body.extend([sparkline, display_body_details])
+        body.extend([sparkline])
+        # footer
+        footer = [
+            dash.html.P(
+                f"{self.timeseries.scenario} (v{self.timeseries.version})",
+                className="small mb-0",
+            ),
+        ]
         # Assemble the whole card
         _children = list()
         _children.extend(
             [
                 dbc.CardHeader(self.header),
                 dbc.CardBody(body),
-                dbc.CardFooter(f"Run Version: {self.timeseries.version}"),
+                dbc.CardFooter(footer),
             ]
         )
         # Resolve passed kwargs
-        custom_kwargs = dict(
-            color="secondary",
-            outline=True,
+        custom_kwargs = (
+            dict(
+                color="secondary",
+                outline=True,
+            )
+            | kwargs
         )
-        custom_kwargs = custom_kwargs | kwargs
         super().__init__(
             _children,
             **custom_kwargs,
@@ -153,7 +167,10 @@ class SparklineMonthlyAverageCard(SparklineCard):
             "Nov",
             "Dec",
         ]
-        return plotting.sparkline(df.iloc[:, 0])
+        return plotting.sparkline(
+            df.iloc[:, 0],
+            yaxis=dict(title=self.timeseries.units),
+        )
 
 
 class ComparativeTimeseriesCard(dbc.Card):
@@ -162,12 +179,16 @@ class ComparativeTimeseriesCard(dbc.Card):
     base_timeseries: csrs.Timeseries
     alt_timeseries: csrs.Timeseries
     header: str
+    subheader: str
 
     def _init_card(self, **kwargs):
         # Initialize the sub-card elements
         diff = self.alt - self.base
         display_value = f"{diff:,.0f} {self.base_timeseries.units}"
-
+        display_subheader = dash.html.P(
+            self.subheader,
+            className="small em m-0 p-0",
+        )
         if diff > 0:
             display_value = dash.html.H3(
                 [dash.html.I(className="bi bi-arrow-up me-3"), display_value],
@@ -185,31 +206,35 @@ class ComparativeTimeseriesCard(dbc.Card):
             )
         else:
             display_value = dash.html.H3("No difference")
+
         if self.base_timeseries.scenario == self.alt_timeseries.scenario:
             va = self.alt_timeseries.version
             vb = self.base_timeseries.version
-            display_body_details = dash.html.P(
+            display_details = dash.html.P(
                 f"{self.base_timeseries.scenario} (version {va} vs {vb})",
-                className="card-text",
+                className="card-text p-1",
             )
         else:
             a = f"{self.alt_timeseries.scenario}"
             b = f"{self.base_timeseries.scenario}"
-            display_body_details = dash.html.P(
+            display_details = dash.html.P(
                 f"{a} vs {b}",
-                className="card-text",
+                className="small mb-0",
             )
         # Assemble the body
-        body = list()
-        body.extend([display_value, display_body_details])
+        body = [
+            display_subheader,
+            display_value,
+        ]
+        # footer
+        footer = [display_details]
         # Assemble the whole card
-        _children = list()
-        _children.extend(
-            [
-                dbc.CardHeader(self.header),
-                dbc.CardBody(body),
-            ]
-        )
+        _children = [
+            dbc.CardHeader(self.header),
+            dbc.CardBody(body, class_name="card-body pt-2 pb-1"),
+            dbc.CardFooter(footer),
+        ]
+
         # Resolve passed kwargs
         custom_kwargs = dict(
             color="secondary",
@@ -227,7 +252,8 @@ class CompareStorageCard(ComparativeTimeseriesCard):
         self,
         base_timeseries: csrs.Timeseries,
         alt_timeseries: csrs.Timeseries,
-        header: str = None,
+        header: str = "",
+        subheader: str = "",
         kind: StorageAggArguments = "eos_mean",
         **kwargs,
     ):
@@ -237,7 +263,8 @@ class CompareStorageCard(ComparativeTimeseriesCard):
             ua = alt_timeseries.units
             ub = base_timeseries.units
             raise ValueError(f"Cannot compare with diff units: alt={ua}, base={ub}")
-        self.header = header or f"Compare {alt_timeseries.path.split('/')[2]}"
+        self.header = header or f"{alt_timeseries.path.split('/')[2]}"
+        self.subheader = "Compare " + AGG_MEANING.get(kind, kind)
         agg_func = getattr(aggregation, kind)
         self.base = agg_func(base_timeseries)
         self.alt = agg_func(alt_timeseries)
