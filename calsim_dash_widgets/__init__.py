@@ -5,3 +5,5 @@ try:
 except PackageNotFoundError:
     # calsim_dash_widgets not installed, likely developer mode
     __version__ = None
+
+from . import cards
