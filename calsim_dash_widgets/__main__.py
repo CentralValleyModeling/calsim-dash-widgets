@@ -114,20 +114,29 @@ def main():
     card_div = dash.html.Div(
         className="ml-3 mr-3 p-3",
         children=[
-            dash.html.H2("Cards"),
+            dash.html.H2("Cards", className="display-2"),
             dbc.Stack(
                 [
+                    dash.html.H6("Single Value Aggregations"),
                     dbc.Stack(
                         [
                             storage_long_term,
                             storage_end_of_sept_max,
                             flow_long_term,
+                        ],
+                        direction="horizontal",
+                        gap=3,
+                    ),
+                    dash.html.H6("Sparklines"),
+                    dbc.Stack(
+                        [
                             flow_plot,
                             storage_plot_monthly,
                         ],
                         direction="horizontal",
                         gap=3,
                     ),
+                    dash.html.H6("Compare Aggregated Values"),
                     dbc.Stack(
                         [
                             comp_storage_long_term,
@@ -145,7 +154,7 @@ def main():
     plot_div = dash.html.Div(
         className="ml-3 mr-3 p-3",
         children=[
-            dash.html.H2("Plots"),
+            dash.html.H2("Plots", className="display-2"),
             dbc.Stack(
                 [
                     dash.html.H4("Exceedance"),
