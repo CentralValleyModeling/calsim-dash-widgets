@@ -16,9 +16,12 @@ classifiers = [
 ]
 dependencies = [
     "numpy",
+    "dash",
+    "pandss",
+    "dash-bootstrap-components",
+    "csrs",
+    "httpx",
 ]
-
-
 
 [tool.setuptools]
 include-package-data = true
