@@ -22,3 +22,14 @@ dependencies = [
 
 [tool.setuptools]
 include-package-data = true
+
+[tool.pytest.ini_options]
+addopts = [
+    "--capture=no",
+    "--import-mode=importlib", 
+    "--strict-markers",
+]
+markers = [
+    "visual: marks tests that are done visually (manually)",
+]
+pythonpath = "./src"
