@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 
 
-def create_sparkline(df: pd.DataFrame, **layout_kwargs) -> dash.dcc.Graph:
+def sparkline(df: pd.DataFrame, **layout_kwargs) -> dash.dcc.Graph:
     fig = px.line(x=df.index, y=df.iloc[:, 0])
     # hide and lock down axes
     fig.update_xaxes(visible=False, fixedrange=True)
