@@ -1,6 +1,7 @@
 from typing import Callable, Literal
 
 import csrs
+import pandas as pd
 import pandss
 
 
@@ -53,3 +54,21 @@ def eos_min(timeseries: csrs.Timeseries | pandss.RegularTimeseries) -> float:
 
 def eos_max(timeseries: csrs.Timeseries | pandss.RegularTimeseries) -> float:
     return eos_agg(timeseries, "max")
+
+
+def annual_sum(
+    timeseries: csrs.Timeseries | pandss.RegularTimeseries,
+    month: int = 1,
+) -> pd.DataFrame:
+    df = timeseries.to_frame()
+    return df.resample(pd.offsets.YearEnd(month=month)).sum()
+
+
+def annual_eos(timeseries: csrs.Timeseries | pandss.RegularTimeseries) -> pd.DataFrame:
+    df = timeseries.to_frame()
+    if not hasattr(df.index, "month"):
+        raise ValueError(
+            f"Cannot filter by months without date-like index: {type(df.index)=}"
+        )
+    mask = df.index.month == 9
+    return df.loc[mask].copy()
