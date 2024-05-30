@@ -8,7 +8,7 @@ def sparkline(s: pd.Series, **layout_kwargs) -> dash.dcc.Graph:
     fig = px.line(x=s.index, y=s.values)
     # hide and lock down axes
     fig.update_xaxes(visible=False, fixedrange=True)
-    fig.update_yaxes(visible=False, fixedrange=True)
+    fig.update_yaxes(visible=True, fixedrange=True, showticklabels=False)
     # remove facet/subplot labels
     fig.update_layout(annotations=[], overwrite=True)
     # strip down the rest of the plot
@@ -28,6 +28,7 @@ def sparkline(s: pd.Series, **layout_kwargs) -> dash.dcc.Graph:
     return dash.dcc.Graph(
         figure=fig,
         config=dict(displayModeBar=False),
+        style=dict(overflow="hidden"),
     )
 
 
