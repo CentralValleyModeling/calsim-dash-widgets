@@ -14,7 +14,7 @@ class TimeseriesCard(dbc.Card):
     timeseries: csrs.Timeseries
     header: str
 
-    def _assemble_card(self, **kwargs):
+    def _init_card(self, **kwargs):
         # Initialize the sub-card elements
         display_value = dash.html.H3(
             f"{self.value:,.0f} {self.timeseries.units}",
@@ -60,7 +60,7 @@ class StorageCard(TimeseriesCard):
         self.header = header or timeseries.path.split("/")[2]
         agg_func = getattr(aggregation, kind)
         self.value = agg_func(timeseries)
-        self._assemble_card(**kwargs)
+        self._init_card(**kwargs)
 
 
 class SparklineCard(dbc.Card):
@@ -75,12 +75,12 @@ class SparklineCard(dbc.Card):
     ):
         self.timeseries = timeseries
         self.header = header or timeseries.path.split("/")[2]
-        self._assemble_card(**kwargs)
+        self._init_card(**kwargs)
 
     def _get_sparkline(self):
-        return plotting.create_sparkline(self.timeseries.to_frame())
+        return plotting.sparkline(self.timeseries.to_frame())
 
-    def _assemble_card(self, **kwargs):
+    def _init_card(self, **kwargs):
         sparkline = self._get_sparkline()
         display_body_details = dash.html.P(
             f"{self.timeseries.scenario}",
@@ -128,7 +128,7 @@ class SparklineMonthlyAverageCard(SparklineCard):
             "Nov",
             "Dec",
         ]
-        return plotting.create_sparkline(df)
+        return plotting.sparkline(df)
 
 
 class ComparativeTimeseriesCard(dbc.Card):
@@ -138,7 +138,7 @@ class ComparativeTimeseriesCard(dbc.Card):
     alt_timeseries: csrs.Timeseries
     header: str
 
-    def _assemble_card(self, **kwargs):
+    def _init_card(self, **kwargs):
         # Initialize the sub-card elements
         diff = self.alt - self.base
         display_value = f"{diff:,.0f} {self.base_timeseries.units}"
@@ -216,4 +216,4 @@ class CompareStorageCard(ComparativeTimeseriesCard):
         agg_func = getattr(aggregation, kind)
         self.base = agg_func(base_timeseries)
         self.alt = agg_func(alt_timeseries)
-        self._assemble_card(**kwargs)
+        self._init_card(**kwargs)
