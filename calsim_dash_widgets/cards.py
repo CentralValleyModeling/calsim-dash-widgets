@@ -64,9 +64,6 @@ class StorageCard(TimeseriesCard):
 
 
 class SparklineCard(dbc.Card):
-    timeseries: csrs.Timeseries
-    header: str
-
     def __init__(
         self,
         timeseries: csrs.Timeseries,
@@ -78,7 +75,7 @@ class SparklineCard(dbc.Card):
         self._init_card(**kwargs)
 
     def _get_sparkline(self):
-        return plotting.sparkline(self.timeseries.to_frame())
+        return plotting.sparkline(self.timeseries.to_frame().iloc[:, 0])
 
     def _init_card(self, **kwargs):
         sparkline = self._get_sparkline()
@@ -128,7 +125,7 @@ class SparklineMonthlyAverageCard(SparklineCard):
             "Nov",
             "Dec",
         ]
-        return plotting.sparkline(df)
+        return plotting.sparkline(df.iloc[:, 0])
 
 
 class ComparativeTimeseriesCard(dbc.Card):
