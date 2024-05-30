@@ -5,7 +5,7 @@ import csrs
 import dash
 import dash_bootstrap_components as dbc
 
-from . import cards
+from . import cards, plots
 
 STATIC = Path(__file__).parent / "static"
 ASSETS = Path(__file__).parent / "assets"
@@ -59,21 +59,17 @@ def main():
         version="1.1",
         path="shasta_storage",
     )
-
-    # Define settings
-    CONTENT_STYLE = {
-        "margin-left": "1rem",
-        "margin-right": "1rem",
-        "padding": "1rem 1rem",
-        "width": "10 rem",
-    }
+    ts_exports = client.get_timeseries(
+        scenario="Adjusted Historical (Danube)",
+        version="1.2",
+        path="banks_exports",
+    )
 
     # Create app
     app = dash.Dash(
         __name__,
         title="CS3 Widgets",
-        assets_folder=ASSETS,
-        external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.BOOTSTRAP],
+        external_stylesheets=[ASSETS, dbc.themes.BOOTSTRAP, dbc.icons.BOOTSTRAP],
     )
 
     # Create widgets
@@ -109,8 +105,17 @@ def main():
         kind="eos_max",
     )
 
-    c = dash.html.Div(
-        [
+    exports_exceedance_plot = plots.ExceedancePlot(ts_exports)
+    storage_exceedance_plot = plots.StorageExceedancePlot(
+        ts_storage,
+        header="Shasta Storage",
+    )
+    exports_ts_plot = plots.TimeseriesPlot(ts_exports)
+    storage_ts_plot = plots.TimeseriesPlot(ts_storage, header="Shasta Storage")
+
+    card_div = dash.html.Div(
+        className="ml-3 mr-3 p-3",
+        children=[
             dash.html.H2("Cards"),
             dbc.Stack(
                 [
@@ -137,13 +142,40 @@ def main():
                 gap=3,
             ),
         ],
-        style=CONTENT_STYLE,
+    )
+    plot_div = dash.html.Div(
+        className="ml-3 mr-3 p-3",
+        children=[
+            dash.html.H2("Plots"),
+            dbc.Stack(
+                [
+                    dash.html.H4("Exceedance"),
+                    dbc.Stack(
+                        [
+                            exports_exceedance_plot,
+                            storage_exceedance_plot,
+                        ],
+                        direction="horizontal",
+                    ),
+                    dash.html.H4("Timeseries"),
+                    dbc.Stack(
+                        [
+                            exports_ts_plot,
+                            storage_ts_plot,
+                        ],
+                        direction="horizontal",
+                    ),
+                ],
+                direction="vertical",
+            ),
+        ],
     )
     app.layout = dash.html.Div(
         [
             dash.dcc.Location(id="url", refresh=False),
             navbar,
-            c,
+            card_div,
+            plot_div,
         ]
     )
     app.run(debug=True)
