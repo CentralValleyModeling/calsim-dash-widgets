@@ -83,17 +83,15 @@ def main():
     storage_long_term = cards.StorageCard(ts_storage)
     storage_end_of_sept_max = cards.StorageCard(
         ts_storage,
-        header="Shasta Storage (Maximum Sept)",
+        header="Shasta",
         kind="eos_max",
     )
-    storage_plot = cards.SparklineCard(
-        ts_storage,
-        header="Shasta Storage",
-    )
+    flow_plot = cards.SparklineCard(ts_exports)
     storage_plot_monthly = cards.SparklineMonthlyAverageCard(
         ts_storage,
         header="Average Monthly Shasta Storage",
     )
+    flow_long_term = cards.AverageAnnualFlowCard(ts_exports, header="Banks Exports")
     comp_storage_long_term = cards.CompareStorageCard(
         base_timeseries=ts_storage_hist,
         alt_timeseries=ts_storage,
@@ -101,7 +99,7 @@ def main():
     comp_storage_max = cards.CompareStorageCard(
         base_timeseries=ts_storage_hist,
         alt_timeseries=ts_storage,
-        header="Adjusted vs Historical (End of Sept Max Shasta Storage)",
+        header="Shasta",
         kind="eos_max",
     )
 
@@ -123,7 +121,8 @@ def main():
                         [
                             storage_long_term,
                             storage_end_of_sept_max,
-                            storage_plot,
+                            flow_long_term,
+                            flow_plot,
                             storage_plot_monthly,
                         ],
                         direction="horizontal",
