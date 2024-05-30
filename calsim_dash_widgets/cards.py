@@ -16,26 +16,31 @@ class TimeseriesCard(dbc.Card):
 
     def _init_card(self, **kwargs):
         # Initialize the sub-card elements
+        display_subheader = dash.html.P(
+            kwargs.pop("subheader", "summary value"),
+            className="small em m-0 p-0",
+        )
         display_value = dash.html.H3(
             f"{self.value:,.0f} {self.timeseries.units}",
             className="card-title",
         )
-        display_body_details = dash.html.P(
-            f"{self.timeseries.scenario}",
-            className="card-text",
-        )
         # Assemble the body
-        body = list()
-        body.extend([display_value, display_body_details])
+        body = [display_subheader, display_value]
+        # footer
+        footer = [
+            dash.html.P(
+                f"{self.timeseries.scenario} (v{self.timeseries.version})",
+                className="small",
+            ),
+        ]
+
         # Assemble the whole card
-        _children = list()
-        _children.extend(
-            [
-                dbc.CardHeader(self.header),
-                dbc.CardBody(body),
-                dbc.CardFooter(f"Run Version: {self.timeseries.version}"),
-            ]
-        )
+        _children = [
+            dbc.CardHeader(self.header),
+            dbc.CardBody(body, class_name="card-body pt-2 pb-1"),
+            dbc.CardFooter(footer),
+        ]
+
         # Resolve passed kwargs
         custom_kwargs = dict(
             color="secondary",
@@ -49,6 +54,29 @@ class TimeseriesCard(dbc.Card):
 
 
 class StorageCard(TimeseriesCard):
+    def __init__(
+        self,
+        timeseries: csrs.Timeseries,
+        header: str = None,
+        kind: StorageAggArguments = "eos_mean",
+        **kwargs,
+    ):
+        agg_subheader = {
+            "eos_mean": "Average End of Sept Storage",
+            "eos_max": "Max End of Sept Storage",
+            "eos_min": "Min End of Sept Storage",
+            "mean": "Average Storage",
+            "max": "Maximum Storage",
+            "min": "Minimum Storage",
+        }
+        self.timeseries = timeseries
+        self.header = header or timeseries.path.split("/")[2]
+        agg_func = getattr(aggregation, kind)
+        self.value = agg_func(timeseries)
+        self._init_card(subheader=agg_subheader.get(kind, kind), **kwargs)
+
+
+class AverageAnnualFlowCard(TimeseriesCard):
     def __init__(
         self,
         timeseries: csrs.Timeseries,
