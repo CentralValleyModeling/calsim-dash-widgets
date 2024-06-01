@@ -3,6 +3,7 @@ from typing import Literal
 import csrs
 import dash
 import dash_bootstrap_components as dbc
+import pandas as pd
 
 from . import aggregation, plotting
 
@@ -17,7 +18,7 @@ AGG_MEANING = {
 }
 
 
-class TimeseriesCard(dbc.Card):
+class _TimeseriesCard(dbc.Card):
     value: float
     timeseries: csrs.Timeseries
     header: str
@@ -62,7 +63,7 @@ class TimeseriesCard(dbc.Card):
         )
 
 
-class StorageCard(TimeseriesCard):
+class StorageCard(_TimeseriesCard):
     def __init__(
         self,
         timeseries: csrs.Timeseries,
@@ -79,7 +80,7 @@ class StorageCard(TimeseriesCard):
         self._init_card(subheader=AGG_MEANING.get(kind, kind), **kwargs)
 
 
-class AverageAnnualFlowCard(TimeseriesCard):
+class AverageAnnualFlowCard(_TimeseriesCard):
     def __init__(
         self,
         timeseries: csrs.Timeseries,
@@ -173,7 +174,7 @@ class SparklineMonthlyAverageCard(SparklineCard):
         )
 
 
-class ComparativeTimeseriesCard(dbc.Card):
+class _ComparativeTimeseriesCard(dbc.Card):
     base: float
     alt: float
     base_timeseries: csrs.Timeseries
@@ -247,7 +248,7 @@ class ComparativeTimeseriesCard(dbc.Card):
         )
 
 
-class CompareStorageCard(ComparativeTimeseriesCard):
+class CompareStorageCard(_ComparativeTimeseriesCard):
     def __init__(
         self,
         base_timeseries: csrs.Timeseries,
@@ -269,3 +270,103 @@ class CompareStorageCard(ComparativeTimeseriesCard):
         self.base = agg_func(base_timeseries)
         self.alt = agg_func(alt_timeseries)
         self._init_card(**kwargs)
+
+
+class ComparativeSparklineCard(dbc.Card):
+    def __init__(
+        self,
+        base: csrs.Timeseries,
+        alt: csrs.Timeseries,
+        header: str = None,
+        **kwargs,
+    ):
+        self.base = base
+        self.alt = alt
+        if self.base.units != self.alt.units:
+            raise ValueError("Cannot plot timeseries with different units")
+        self.header = header or self.base.path.split("/")[2]
+        self._init_card(**kwargs)
+
+    def _get_sparkline(self):
+        return plotting.comparative_sparkline(
+            {
+                self.base.scenario: self.base.to_frame().iloc[:, 0],
+                self.alt.scenario: self.alt.to_frame().iloc[:, 0],
+            },
+            yaxis=dict(title=self.base.units),
+        )
+
+    def _init_card(self, **kwargs):
+        sparkline = self._get_sparkline()
+
+        # Assemble the body
+        body = list()
+        body.extend([sparkline])
+        # footer
+        footer = [
+            dash.html.Div(
+                [
+                    dash.html.P(
+                        f"{self.base.scenario} version {self.base.version}",
+                        className="small mb-0",
+                    ),
+                    dash.html.P(
+                        f"{self.alt.scenario} version {self.alt.version}",
+                        className="small mb-0",
+                    ),
+                ]
+            )
+        ]
+        # Assemble the whole card
+        _children = list()
+        _children.extend(
+            [
+                dbc.CardHeader(self.header),
+                dbc.CardBody(body),
+                dbc.CardFooter(footer),
+            ]
+        )
+        # Resolve passed kwargs
+        custom_kwargs = (
+            dict(
+                color="secondary",
+                outline=True,
+            )
+            | kwargs
+        )
+        super().__init__(
+            _children,
+            **custom_kwargs,
+        )
+
+
+class ComparativeSparklineMonthlyAverageCard(ComparativeSparklineCard):
+    def _get_sparkline(self):
+        def _reshape(ts: csrs.Timeseries) -> pd.DataFrame:
+            df = ts.to_frame()
+            df = df.groupby(df.index.month).mean()
+            df.index = [
+                "Jan",
+                "Feb",
+                "Mar",
+                "Apr",
+                "May",
+                "Jun",
+                "Jul",
+                "Aug",
+                "Sep",
+                "Oct",
+                "Nov",
+                "Dec",
+            ]
+            return df
+
+        df_base = _reshape(self.base)
+        df_alt = _reshape(self.alt)
+        return plotting.comparative_sparkline(
+            {
+                self.base.scenario: df_base.iloc[:, 0],
+                self.alt.scenario: df_alt.iloc[:, 0],
+            },
+            yaxis=dict(title=self.base.units),
+        )
